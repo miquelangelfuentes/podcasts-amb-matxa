@@ -33,6 +33,9 @@ jobs:
           pip install piper-tts pathvalidate
 
       - name: Executar proves automatitzades de funcionalitats
+        env:
+          SDL_VIDEODRIVER: dummy
+          SDL_AUDIODRIVER: dummy
         run: |
           python test_features.py
 
