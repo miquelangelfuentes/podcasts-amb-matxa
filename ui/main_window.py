@@ -1004,6 +1004,7 @@ class MainWindow(ctk.CTk):
                     spk_cfg = self.current_script.speakers[spk_name]
                     voice_id = spk_cfg.voice_id
                     pan_str = self._pan_val_to_str(spk_cfg.pan)
+                    speed_str = f" velocitat={spk_cfg.speed}" if abs(spk_cfg.speed - 1.0) > 0.05 else ""
                 else:
                     is_presenter = "presentad" in spk_name.lower()
                     if is_presenter:
@@ -1013,14 +1014,16 @@ class MainWindow(ctk.CTk):
                         voice_id = default_voices[assigned_idx % len(default_voices)]
                         pan_str = self._pan_val_to_str(default_pans[assigned_idx % len(default_pans)])
                         assigned_idx += 1
-                lines.append(f"{spk_name}: veu={voice_id} pan={pan_str}")
+                    speed_str = ""
+                lines.append(f"{spk_name}: veu={voice_id} pan={pan_str}{speed_str}")
         else:
             # Fallback si el diàleg encara està buit
             speakers = self.current_script.speakers
             if speakers:
                 for spk_name, spk_cfg in speakers.items():
                     pan_str = self._pan_val_to_str(spk_cfg.pan)
-                    lines.append(f"{spk_name}: veu={spk_cfg.voice_id} pan={pan_str}")
+                    speed_str = f" velocitat={spk_cfg.speed}" if abs(spk_cfg.speed - 1.0) > 0.05 else ""
+                    lines.append(f"{spk_name}: veu={spk_cfg.voice_id} pan={pan_str}{speed_str}")
             else:
                 mode = self.voices_mode_seg.get().lower()
                 is_matxa = hasattr(self.tts_engine, "MATXA_SPEAKERS")
@@ -1279,6 +1282,8 @@ class MainWindow(ctk.CTk):
                     self.current_script.speakers[spk_name].voice_id = overrides["voice_id"]
                 if "pan" in overrides:
                     self.current_script.speakers[spk_name].pan = overrides["pan"]
+                if "speed" in overrides:
+                    self.current_script.speakers[spk_name].speed = overrides["speed"]
 
         self._update_script_stats_and_ui()
 
@@ -1390,7 +1395,7 @@ class MainWindow(ctk.CTk):
 
             # Línia 2: Espacialització Estèreo amb PillSelector d'alt contrast (Blanc sobre verd quan és actiu!)
             pan_line = ctk.CTkFrame(card, fg_color="transparent", height=1)
-            pan_line.pack(fill="x", padx=10, pady=(2, 6))
+            pan_line.pack(fill="x", padx=10, pady=(2, 2))
 
             pan_lbl = ctk.CTkLabel(
                 pan_line,
@@ -1412,6 +1417,31 @@ class MainWindow(ctk.CTk):
                 command=lambda val, name=spk_name: self._on_speaker_pan_change(name, val)
             )
             pan_seg.pack(side="left", fill="x", expand=True, padx=(4, 0))
+
+            # Línia 3: Velocitat de locució amb PillSelector (0.8x a 1.2x)
+            speed_line = ctk.CTkFrame(card, fg_color="transparent", height=1)
+            speed_line.pack(fill="x", padx=10, pady=(2, 6))
+
+            speed_lbl = ctk.CTkLabel(
+                speed_line,
+                text="Velocitat veu:",
+                font=MatchaTheme.FONT_SMALL,
+                text_color=MatchaTheme.TEXT_MUTED,
+                width=85,
+                anchor="w"
+            )
+            speed_lbl.pack(side="left")
+
+            speed_seg = PillSelector(
+                speed_line,
+                values=["0.8x", "0.9x", "1.0x (Normal)", "1.1x", "1.2x"],
+                default_val=self._speed_val_to_label(spk_cfg.speed),
+                height=24,
+                font_size=9,
+                expand_buttons=True,
+                command=lambda val, name=spk_name: self._on_speaker_speed_change(name, val)
+            )
+            speed_seg.pack(side="left", fill="x", expand=True, padx=(4, 0))
 
     def _on_engine_change(self, choice):
         if "UPC" in choice:
@@ -1438,6 +1468,7 @@ class MainWindow(ctk.CTk):
         spk_cfg = self.current_script.speakers[spk_name]
         pan_str = self._pan_val_to_str(spk_cfg.pan)
         voice_id = spk_cfg.voice_id
+        speed_val = spk_cfg.speed
 
         content = self.script_textbox.get("1.0", "end-1c")
         spk_line_pattern = re.compile(rf"^(\s*{re.escape(spk_name)}\s*:\s*)([^\r\n]*)", re.MULTILINE)
@@ -1453,6 +1484,10 @@ class MainWindow(ctk.CTk):
                 rest = re.sub(r'\b(?:pan|panning)=([^\s]+)', f'pan={pan_str}', rest, flags=re.IGNORECASE)
             else:
                 rest = rest + f" pan={pan_str}"
+            if re.search(r'\b(?:velocitat|speed|rate)=([^\s]+)', rest, flags=re.IGNORECASE):
+                rest = re.sub(r'\b(?:velocitat|speed|rate)=([^\s]+)', f'velocitat={speed_val}', rest, flags=re.IGNORECASE)
+            else:
+                rest = rest + f" velocitat={speed_val}"
             new_line = f"{prefix}{rest.strip()}"
             updated = content[:m.start()] + new_line + content[m.end():]
 
@@ -1462,6 +1497,40 @@ class MainWindow(ctk.CTk):
                 self.script_textbox.insert("1.0", updated)
             finally:
                 self._suppress_script_sync = False
+
+    @staticmethod
+    def _speed_val_to_label(val: float) -> str:
+        if val <= 0.85:
+            return "0.8x"
+        elif val <= 0.95:
+            return "0.9x"
+        elif val <= 1.05:
+            return "1.0x (Normal)"
+        elif val <= 1.15:
+            return "1.1x"
+        else:
+            return "1.2x"
+
+    @staticmethod
+    def _speed_label_to_val(label: str) -> float:
+        if "0.8" in label:
+            return 0.8
+        elif "0.9" in label:
+            return 0.9
+        elif "1.1" in label:
+            return 1.1
+        elif "1.2" in label:
+            return 1.2
+        return 1.0
+
+    def _on_speaker_speed_change(self, spk_name: str, speed_label: str):
+        speed_val = self._speed_label_to_val(speed_label)
+        if spk_name in self.current_script.speakers:
+            self.current_script.speakers[spk_name].speed = speed_val
+        if spk_name not in self.ui_speaker_overrides:
+            self.ui_speaker_overrides[spk_name] = {}
+        self.ui_speaker_overrides[spk_name]["speed"] = speed_val
+        self._sync_speaker_config_to_editor(spk_name)
 
     def _on_speaker_voice_change(self, spk_name, voice_label):
         voice_id = self._get_voice_id_from_label(voice_label)
@@ -1972,12 +2041,15 @@ class MainWindow(ctk.CTk):
                     self.current_script.speakers[spk_name].voice_id = overrides["voice_id"]
                 if "pan" in overrides:
                     self.current_script.speakers[spk_name].pan = overrides["pan"]
+                if "speed" in overrides:
+                    self.current_script.speakers[spk_name].speed = overrides["speed"]
 
         for seg in self.current_script.segments:
             if seg.segment_type == "dialogue" and seg.speaker in self.current_script.speakers:
                 spk_cfg = self.current_script.speakers[seg.speaker]
                 seg.voice_id = spk_cfg.voice_id
                 seg.pan = spk_cfg.pan
+                seg.speed = spk_cfg.speed
 
         if not self.current_script.segments:
             messagebox.showwarning("Atenció", "El guió està buit o no conté línies de diàleg.")
