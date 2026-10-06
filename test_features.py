@@ -277,7 +277,17 @@ def test_background_music_mixing():
         energy_noloop_end = np.mean(mixed_noloop[:, int(6 * 22050):int(9 * 22050)] ** 2)
         assert energy_loop_end > energy_noloop_end, "En bucle la música continua sonant al tram final"
 
-        print("[OK] Mescla de pista de fons, bucle continu, re-mostreig i control de volum verificats amb èxit!")
+        # Test d'Auto-Ducking intel·ligent
+        # Creem veu amb parla als primers 2 segons i silenci als 2 següents
+        test_voice = np.zeros((2, 4 * 22050), dtype=np.float32)
+        test_voice[:, :2 * 22050] = 0.5 * np.sin(2 * np.pi * 440 * np.linspace(0, 2, 2 * 22050, dtype=np.float32))
+        mixed_ducked = ap.mix_background_track(test_voice, tmp_bg, volume=0.4, ducking=True)
+        assert mixed_ducked.shape == test_voice.shape
+        talk_bg = np.mean((mixed_ducked[:, int(0.5 * 22050):int(1.5 * 22050)] - test_voice[:, int(0.5 * 22050):int(1.5 * 22050)]) ** 2)
+        pause_bg = np.mean((mixed_ducked[:, int(2.5 * 22050):int(3.5 * 22050)] - test_voice[:, int(2.5 * 22050):int(3.5 * 22050)]) ** 2)
+        assert pause_bg > talk_bg * 3.0, "La música ha d'estar significativament atenuada mentre es parla"
+
+        print("[OK] Mescla de pista de fons, bucle continu, auto-ducking, re-mostreig i control de volum verificats amb èxit!")
     finally:
         if os.path.exists(tmp_bg):
             try:

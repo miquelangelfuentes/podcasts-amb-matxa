@@ -43,6 +43,7 @@ Per utilitzar l'aplicació a Windows **sense necessitat d'instal·lar Python ni 
 - **Mostres instantànies de veu (0 ms)**: escolta en directe qualsevol veu catalana amb el botó `▶ Escolta`.
 - **Pista de música o so de fons (MP3 / WAV / OGG / FLAC)**:
   - Permet afegir fàcilment una banda sonora, sintonia d'obertura o ambientació sonora de fons al pòdcast.
+  - **Auto-ducking intel·ligent**: redueix automàticament el volum de la música (-12 dB) mentre les veus parlen i el recupera suaument en pauses i silencis. Es pot activar o desactivar amb un sol clic.
   - Reproducció automàtica en **bucle continu (*loop*)** amb transició suau (*cross-fade* de 20 ms) per evitar salts bruscos entre repeticions.
   - **Medidor i lliscador de volum** regulable de l'1% al 100% (per defecte al 15% per a màxima claredat vocal) amb botó d'escolta de prova instantània (`▶ Prova` / `■ Atura`).
   - Esvaïment progressiu d'entrada (*fade-in* d'1 s) i sortida (*fade-out* de 2 s), integrat amb limitador suau de pic per evitar saturació digital en la masterització final.

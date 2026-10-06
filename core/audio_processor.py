@@ -271,15 +271,22 @@ class AudioProcessor:
         volume: float = 0.15,
         loop: bool = True,
         fade_in_sec: float = 1.0,
-        fade_out_sec: float = 2.0
+        fade_out_sec: float = 2.0,
+        ducking: bool = True,
+        duck_threshold_db: float = -42.0,
+        duck_reduction_db: float = 12.0,
+        duck_attack_ms: float = 120.0,
+        duck_release_ms: float = 650.0
     ) -> np.ndarray:
         """
         Mescla una pista de música o ambient de fons sota la locució del pòdcast.
         - voice_audio: Senyal estèreo principal (2, N) a self.sample_rate.
         - bg_audio: Ruta al fitxer d'àudio (MP3/WAV/etc.) o array estèreo (2, L).
-        - volume: Factor de volum de fons (0.0 a 1.0, típicament 0.10 - 0.20).
+        - volume: Factor de volum de fons (0.0 a 1.0, típicament 0.10 - 0.20 quan parla).
         - loop: Si és True i la pista és més curta que el pòdcast, es repeteix en bucle amb cross-fade de 20 ms.
         - fade_in_sec / fade_out_sec: Durada dels esvaïments suaus d'entrada i sortida de la música.
+        - ducking: Si és True, aplica auto-ducking intel·ligent: la música sona al volum complet
+          durant silencis o pauses i s'atenua dinàmicament (-12 dB) mentre hi ha locució activa.
         """
         if voice_audio is None or voice_audio.size == 0:
             return voice_audio
@@ -341,8 +348,54 @@ class AudioProcessor:
         else:
             bg_final = bg_stereo[:, :total_samples]
 
-        # Aplicació de volum a la música
-        bg_final = bg_final * volume
+        # Aplicació d'Auto-Ducking intel·ligent si està activat
+        if ducking:
+            # 1. Envolupant d'amplitud mono de la locució
+            voice_mono = np.max(np.abs(voice_audio), axis=0)
+
+            # Detecció de presència de veu per blocs de 20 ms (~RMS)
+            block_size = max(1, int(0.020 * self.sample_rate))
+            num_blocks = (total_samples + block_size - 1) // block_size
+            pad_needed = num_blocks * block_size - total_samples
+            if pad_needed > 0:
+                v_padded = np.pad(voice_mono, (0, pad_needed), mode="constant")
+            else:
+                v_padded = voice_mono
+
+            # Valor RMS per bloc
+            blocks = v_padded.reshape(num_blocks, block_size)
+            block_rms = np.sqrt(np.mean(blocks ** 2, axis=1) + 1e-12)
+
+            # Convertim el llindar dB a escala lineal
+            thresh_linear = 10.0 ** (duck_threshold_db / 20.0)
+
+            # Factor de reducció (duck ratio)
+            duck_ratio = 10.0 ** (-abs(duck_reduction_db) / 20.0)
+            target_gains = np.where(block_rms >= thresh_linear, duck_ratio, 1.0).astype(np.float32)
+
+            # Interpola a nivell de mostra
+            raw_gain = np.repeat(target_gains, block_size)[:total_samples]
+
+            # 2. Suavitzat asimètric (Atac ràpid per atenuar, Relaxació suau per recuperar)
+            attack_samples = max(1, int((duck_attack_ms / 1000.0) * self.sample_rate))
+            release_samples = max(1, int((duck_release_ms / 1000.0) * self.sample_rate))
+            alpha_attack = math.exp(-1.0 / attack_samples)
+            alpha_release = math.exp(-1.0 / release_samples)
+
+            gain_curve = np.empty(total_samples, dtype=np.float32)
+            curr = 1.0
+            for i in range(total_samples):
+                tgt = raw_gain[i]
+                if tgt < curr:
+                    curr = alpha_attack * curr + (1.0 - alpha_attack) * tgt
+                else:
+                    curr = alpha_release * curr + (1.0 - alpha_release) * tgt
+                gain_curve[i] = curr
+
+            # Multipliquem la pista de música pel volum i la corba de guany
+            bg_final = bg_final * (volume * gain_curve)
+        else:
+            bg_final = bg_final * volume
 
         # Esvaïment suau d'entrada (fade-in) i sortida (fade-out)
         fade_in_samples = min(int(fade_in_sec * self.sample_rate), total_samples // 2)
