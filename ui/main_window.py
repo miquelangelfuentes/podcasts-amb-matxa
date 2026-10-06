@@ -21,6 +21,7 @@ import customtkinter as ctk
 from PIL import Image
 import numpy as np
 import soundfile as sf
+import pygame
 
 # Habilitar suport per a pantalles d'alta resolució (High-DPI) a Windows
 if sys.platform == "win32":
@@ -1783,8 +1784,13 @@ class MainWindow(ctk.CTk):
         self.bg_music_volume = v
         pct = int(round(v * 100))
         self.lbl_bg_volume.configure(text=f"Volum: {pct}%")
+        # Ajust de volum en directe sense reiniciar la reproducció si ja està sonant
         if getattr(self, "_is_bg_previewing", False):
-            self._play_bg_preview_sound()
+            try:
+                if pygame.mixer.get_init():
+                    pygame.mixer.music.set_volume(self.bg_music_volume)
+            except Exception:
+                pass
 
     def _toggle_bg_preview(self):
         """Reprodueix o atura una mostra de la música de fons al volum seleccionat."""
@@ -1823,7 +1829,6 @@ class MainWindow(ctk.CTk):
 
             # Prioritzar Pygame mixer directament amb el fitxer d'àudio complet per reproducció íntegra i volum dinàmic
             try:
-                import pygame
                 if not pygame.mixer.get_init():
                     pygame.mixer.init(frequency=22050, size=-16, channels=2, buffer=1024)
                 pygame.mixer.music.load(self.bg_music_path)
@@ -1840,7 +1845,6 @@ class MainWindow(ctk.CTk):
                 sf.write(self._bg_preview_tmp_wav, audio.T, 22050, subtype="PCM_16")
 
                 try:
-                    import pygame
                     if not pygame.mixer.get_init():
                         pygame.mixer.init(frequency=22050, size=-16, channels=audio.shape[0], buffer=1024)
                     pygame.mixer.music.load(self._bg_preview_tmp_wav)
@@ -1919,18 +1923,25 @@ class MainWindow(ctk.CTk):
                 pass
             self._bg_preview_timer_id = None
 
+        # 1. Aturar Pygame mixer music i Sound
+        try:
+            if pygame.mixer.get_init():
+                pygame.mixer.music.stop()
+                try:
+                    pygame.mixer.music.unload()
+                except Exception:
+                    pass
+                pygame.mixer.stop()
+        except Exception as pe:
+            print(f"Avís aturant pygame: {pe}")
+
+        # 2. Aturar winsound si s'estava reproduint per allà
         if sys.platform == "win32":
             try:
                 import winsound
                 winsound.PlaySound(None, winsound.SND_PURGE)
-            except Exception:
-                pass
-
-        try:
-            if pygame.mixer.get_init():
-                pygame.mixer.music.stop()
-        except Exception:
-            pass
+            except Exception as we:
+                print(f"Avís aturant winsound: {we}")
 
         try:
             self.btn_bg_preview.configure(
