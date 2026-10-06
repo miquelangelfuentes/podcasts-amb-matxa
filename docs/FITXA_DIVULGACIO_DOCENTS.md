@@ -111,6 +111,7 @@ Aquest document és una **guia completa de context i indicacions de referència*
 - **Mode núvol vs. mode offline:** per a ús amb menors d'edat i en entorns escolars, es recomana prioritzar sempre els motors offline (Matxa-TTS v2 o UPC FestCat) per garantir la privadesa absoluta de les dades.
 - **Mode escola i privadesa màxima:** prement el botó **🏫 Mode escola** a la capçalera, l'aplicació desactiva automàticament el motor al núvol del desplegable i mostra la insígnia de RGPD protegit. Recomanat per a totes les sessions amb alumnat menor d'edat.
 - **Dreceres de teclat i accessibilitat:** `Ctrl+G` (generar), `Ctrl+S` (desar), `Ctrl+O` (obrir), `F1` (guia SSML) i `Escape` (cancel·lar generació) per a usuaris amb necessitats d'accessibilitat o per agilitzar el treball a l'aula.
+- **Auto-ducking i regulació de velocitat (v1.1.1):** la música de fons s'atenua automàticament quan parlen les veus gràcies a l'auto-ducking vocal integrat, i cada locutor disposa de selectors visuals de velocitat (`0.8x` a `1.2x`) per adaptar el ritme als diversos perfils d'aprenentatge.
 
 ---
 

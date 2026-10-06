@@ -4,6 +4,24 @@ Tots els canvis rellevants, correccions (*fixes*) i novetats del projecte **Pòd
 
 ---
 
+## [1.1.1] - 2026-10-06
+
+### ✨ Novetats
+* **Auto-ducking intel·ligent per a la música o ambient de fons:**
+  * S'incorpora un detector d'energia RMS de veu (-12 dB) amb atac suau (120 ms) i caiguda progressiva (650 ms) que atenua automàticament la música quan els locutors parlen i la recupera suaument durant les pauses i silencis.
+  * Interruptor directe «📉 Auto-ducking» a la targeta de música de fons, activat per defecte.
+* **Control visual de velocitat de veu per a cada locutor:**
+  * Cada targeta de locutor a la interfície d'usuari incorpora ara un selector ràpid de píndola (`PillSelector`) amb 5 velocitats: `0.8x`, `0.9x`, `1.0x (Normal)`, `1.1x` i `1.2x`.
+  * Regulació en temps real sincronitzada automàticament amb els paràmetres de síntesi dels motors Matxa-TTS v2 (`length_scale`), UPC FestCat Piper i Veus neuronals al núvol.
+
+### 🐛 Correccions
+* **Aturada instantània de la reproducció de música de fons:**
+  * S'ha corregit un problema pel qual el botó «■ Atura» de la previsualització de música no silenciava la pista quan Pygame estava en execució contínua. Ara purga immediatament la memòria d'àudio tant a Pygame com al subsistema de Windows (`winsound.SND_PURGE`).
+* **Regulació dinàmica de volum en viu:**
+  * Modificar el lliscador de volum mentre sona la prova de música actualitza el nivell sonor en temps real mitjançant `pygame.mixer.music.set_volume()` sense interrompre ni reiniciar la cançó des del principi.
+
+---
+
 ## [1.1.0] - 2026-09-25
 
 ### ✨ Novetats

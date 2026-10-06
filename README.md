@@ -12,14 +12,14 @@
 ## 📥 Descarrega directa per a Windows (.exe)
 
 Per utilitzar l'aplicació a Windows **sense necessitat d'instal·lar Python ni compilar**:
-1. Descarrega el paquet complet de la **versió oficial actualitzada v1.1.0**:
-   👉 **[Descarregar PodcastsAmbMatxa v1.1.0 per a Windows (.zip)](https://github.com/miquelangelfuentes/podcasts-amb-estil-i-matxa/releases/download/v1.1.0/PodcastsAmbMatxa-v1.1.0-Windows.zip)** (~402 MB)
+1. Descarrega el paquet complet de la **versió oficial actualitzada v1.1.1**:
+   👉 **[Descarregar PodcastsAmbMatxa v1.1.1 per a Windows (.zip)](https://github.com/miquelangelfuentes/podcasts-amb-estil-i-matxa/releases/download/v1.1.1/PodcastsAmbMatxa-v1.1.1-Windows.zip)** (~402 MB)
 2. Descomprimeix el fitxer ZIP en una carpeta del teu ordinador.
 3. Executa directament `PodcastsAmbMatxa.exe`.
 4. A la barra superior, fes clic a **`📦 Models`** per descarregar els models de síntesi de veu des d'Hugging Face amb un sol clic.
 
 > [!NOTE]
-> **Versió actual v1.1.0**: l'arxiu descarregat s'anomena amb el nom i número de la versió actualitzada (`PodcastsAmbMatxa-v1.1.0-Windows.zip`) i inclou el nou motor UPC FestCat (Ona i Pau), el Mode escola 100% offline (RGPD), dreceres de teclat globals per a accessibilitat, la pista de música de fons amb bucle i control de volum, el comprovador de versió i el número de versió visible tant a la barra de títol com a la capçalera de l'aplicació.
+> **Versió actual v1.1.1**: l'arxiu descarregat s'anomena amb el nom i número de la versió actualitzada (`PodcastsAmbMatxa-v1.1.1-Windows.zip`) i inclou el nou sistema d'**auto-ducking** intel·ligent per a la música de fons, la parada instantània de reproducció (`■ Atura`), el control visual de **velocitat de veu** (`0.8x` a `1.2x`) a cada locutor, el motor UPC FestCat (Ona i Pau), el Mode escola 100% offline (RGPD), dreceres de teclat globals per a accessibilitat, el comprovador de versió i el número de versió visible tant a la barra de títol com a la capçalera de l'aplicació.
 
 ---
 
@@ -102,7 +102,7 @@ Per utilitzar l'aplicació a Windows **sense necessitat d'instal·lar Python ni 
 
 ### 🪟 A Windows
 - **Llançament directe (Python)**: fes doble clic a `run_app.bat` o obre una consola PowerShell i executa `py app.py`.
-- **Compilació a executable (.exe)**: fes doble clic a `build_exe.bat` o executa `py build_exe.py`. L'executable autònom es generarà a `dist/PodcastsAmbMatxa/PodcastsAmbMatxa.exe` i es comprimirà automàticament a `dist/PodcastsAmbMatxa-v1.1.0-Windows.zip`.
+- **Compilació a executable (.exe)**: fes doble clic a `build_exe.bat` o executa `py build_exe.py`. L'executable autònom es generarà a `dist/PodcastsAmbMatxa/PodcastsAmbMatxa.exe` i es comprimirà automàticament a `dist/PodcastsAmbMatxa-v1.1.1-Windows.zip`.
 
 ### 🐧 A Linux (Ubuntu, Debian, Linkat, Fedora, Arch, Linux Mint)
 1. **Instal·la les dependències de sistema necessàries**:
@@ -128,7 +128,7 @@ Per utilitzar l'aplicació a Windows **sense necessitat d'instal·lar Python ni 
    ```bash
    python3 build_linux.py
    ```
-   Es generarà el binari autònom i el paquet comprimit `dist/PodcastsAmbMatxa-v1.1.0-Linux-x86_64.tar.gz`.
+   Es generarà el binari autònom i el paquet comprimit `dist/PodcastsAmbMatxa-v1.1.1-Linux-x86_64.tar.gz`.
 
 ---
 
