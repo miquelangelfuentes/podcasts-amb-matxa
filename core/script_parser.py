@@ -273,32 +273,109 @@ class ScriptParser:
                         )
 
                     spk = script.speakers[speaker_name]
-                    pause_after = script.turn_pause_ms if (last_speaker and last_speaker != speaker_name) else script.default_pause_ms
-                    last_speaker = speaker_name
 
-                    # Neteja d'etiquetes residuals [PAUSA: ...] al final del text
-                    clean_utterance = re.sub(r'\[(?:PAUSA|PAUSE)\s*:\s*([^\]]+)\]', '', utterance, flags=re.IGNORECASE).strip()
-
-                    if clean_utterance:
+                    # Pausa automàtica conversacional en canvi d'interlocutor
+                    if last_speaker and last_speaker != speaker_name:
                         script.segments.append(PodcastSegment(
-                            segment_type="dialogue",
-                            speaker=speaker_name,
-                            text=clean_utterance,
-                            pause_ms=pause_after,
-                            pan=spk.pan,
-                            speed=spk.speed,
-                            pitch=spk.pitch,
-                            clone_audio_path=spk.clone_audio_path,
-                            voice_id=spk.voice_id,
-                            raw_line=raw_line
+                            segment_type="pause",
+                            pause_ms=script.turn_pause_ms,
+                            raw_line="[AUTO_TURN_PAUSE]"
                         ))
+
+                    inline_pause_regex = re.compile(r'(\[(?:PAUSA|PAUSE)\s*:\s*[^\]]+\]|<break\s+[^>]*/>)', re.IGNORECASE)
+                    parts = inline_pause_regex.split(utterance)
+
+                    for part in parts:
+                        if not part:
+                            continue
+                        bracket_match = re.match(r'^\[(?:PAUSA|PAUSE)\s*:\s*([^\]]+)\]$', part.strip(), re.IGNORECASE)
+                        if bracket_match:
+                            dur_ms = self.parse_time_ms(bracket_match.group(1))
+                            script.segments.append(PodcastSegment(
+                                segment_type="pause",
+                                pause_ms=dur_ms,
+                                raw_line=part
+                            ))
+                            continue
+
+                        break_match = re.match(r'^<break\s+time=["\']([0-9.]+)(ms|s)["\']\s*/?>$', part.strip(), re.IGNORECASE)
+                        if break_match:
+                            val = float(break_match.group(1))
+                            unit = break_match.group(2).lower()
+                            dur_ms = int(val if unit == "ms" else val * 1000)
+                            script.segments.append(PodcastSegment(
+                                segment_type="pause",
+                                pause_ms=dur_ms,
+                                raw_line=part
+                            ))
+                            continue
+
+                        clean_utterance = part.strip()
+                        if clean_utterance:
+                            script.segments.append(PodcastSegment(
+                                segment_type="dialogue",
+                                speaker=speaker_name,
+                                text=clean_utterance,
+                                pause_ms=script.default_pause_ms,
+                                pan=spk.pan,
+                                speed=spk.speed,
+                                pitch=spk.pitch,
+                                clone_audio_path=spk.clone_audio_path,
+                                voice_id=spk.voice_id,
+                                raw_line=raw_line
+                            ))
+
+                    last_speaker = speaker_name
                     continue
 
             # Si estem en mode DIALOGUE i la línia no té prefix "Locutor:", és continuació de la frase
-            if mode == "DIALOGUE" and script.segments and script.segments[-1].segment_type == "dialogue":
-                # Assegurar que no és una etiqueta entre claudàtors
-                if not (line.startswith("[") and line.endswith("]")):
-                    script.segments[-1].text += " " + line
+            if mode == "DIALOGUE" and last_speaker:
+                spk = script.speakers.get(last_speaker)
+                inline_pause_regex = re.compile(r'(\[(?:PAUSA|PAUSE)\s*:\s*[^\]]+\]|<break\s+[^>]*/>)', re.IGNORECASE)
+                parts = inline_pause_regex.split(line)
+
+                for part in parts:
+                    if not part:
+                        continue
+                    bracket_match = re.match(r'^\[(?:PAUSA|PAUSE)\s*:\s*([^\]]+)\]$', part.strip(), re.IGNORECASE)
+                    if bracket_match:
+                        dur_ms = self.parse_time_ms(bracket_match.group(1))
+                        script.segments.append(PodcastSegment(
+                            segment_type="pause",
+                            pause_ms=dur_ms,
+                            raw_line=part
+                        ))
+                        continue
+
+                    break_match = re.match(r'^<break\s+time=["\']([0-9.]+)(ms|s)["\']\s*/?>$', part.strip(), re.IGNORECASE)
+                    if break_match:
+                        val = float(break_match.group(1))
+                        unit = break_match.group(2).lower()
+                        dur_ms = int(val if unit == "ms" else val * 1000)
+                        script.segments.append(PodcastSegment(
+                            segment_type="pause",
+                            pause_ms=dur_ms,
+                            raw_line=part
+                        ))
+                        continue
+
+                    clean_part = part.strip()
+                    if clean_part:
+                        if script.segments and script.segments[-1].segment_type == "dialogue" and script.segments[-1].speaker == last_speaker:
+                            script.segments[-1].text += " " + clean_part
+                        else:
+                            script.segments.append(PodcastSegment(
+                                segment_type="dialogue",
+                                speaker=last_speaker,
+                                text=clean_part,
+                                pause_ms=script.default_pause_ms,
+                                pan=spk.pan if spk else 0.0,
+                                speed=spk.speed if spk else 1.0,
+                                pitch=spk.pitch if spk else 0.0,
+                                clone_audio_path=spk.clone_audio_path if spk else None,
+                                voice_id=spk.voice_id if spk else "elia",
+                                raw_line=raw_line
+                            ))
                 continue
 
             # Si encara som a HEADER i no és res del que coneixem, es descarta completament
