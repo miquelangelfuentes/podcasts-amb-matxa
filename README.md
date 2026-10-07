@@ -13,7 +13,7 @@
 
 Per utilitzar l'aplicació a Windows **sense necessitat d'instal·lar Python ni compilar**:
 1. Descarrega el paquet complet de la **versió oficial actualitzada v1.1.1**:
-   👉 **[Descarregar PodcastsAmbMatxa v1.1.1 per a Windows (.zip)](https://github.com/miquelangelfuentes/podcasts-amb-estil-i-matxa/releases/download/v1.1.1/PodcastsAmbMatxa-v1.1.1-Windows.zip)** (~402 MB)
+   👉 **[Descarregar PodcastsAmbMatxa v1.1.1 per a Windows (.zip)](https://github.com/miquelangelfuentes/podcasts-amb-matxa/releases/download/v1.1.1/PodcastsAmbMatxa-v1.1.1-Windows.zip)** (~150 MB)
 2. Descomprimeix el fitxer ZIP en una carpeta del teu ordinador.
 3. Executa directament `PodcastsAmbMatxa.exe`.
 4. A la barra superior, fes clic a **`📦 Models`** per descarregar els models de síntesi de veu des d'Hugging Face amb un sol clic.
