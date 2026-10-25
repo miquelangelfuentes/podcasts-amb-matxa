@@ -17,6 +17,10 @@ Free code signing provided by [SignPath.io](https://signpath.io/), certificate b
 - **Approver**: [Miquel Àngel Fuentes](https://github.com/miquelangelfuentes)
 - **Privacy policy**: [PRIVACY.md](PRIVACY.md)
 
+Només se sotmeten a signatura els artefactes de les versions de Windows generats des d'aquest repositori mitjançant el flux oficial de GitHub Actions.
+
+Cada sol·licitud de signatura ha de ser aprovada manualment per l'**Approver** del projecte abans de publicar cap artefacte signat.
+
 > [!NOTE]
 > Les versions de Windows publicades fins ara són anteriors a l'aprovació de SignPath i no s'han d'interpretar com a binaris signats per SignPath. Quan el projecte sigui aprovat, les versions posteriors se signaran mitjançant el flux de SignPath documentat al repositori.
 
@@ -103,9 +107,9 @@ Per utilitzar l'aplicació a Windows **sense necessitat d'instal·lar Python ni 
 ├── 📁 assets/                    # Icona cerimonial de te matxa i bàner oficial
 ├── 📄 build_exe.py               # Script de compilació a .exe amb PyInstaller (Windows)
 ├── 📄 build_exe.bat              # Fitxer per compilar amb un sol clic a Windows
-├── 📄 build_linux.py             # Script de compilació per a Linux (x86_64)
+├── 📄 build_linux.py             # Fitxer per compilar amb PyInstaller (Linux x86_64)
 ├── 📄 run_app.bat                # Llançador directe de l'aplicació per a Windows
-├── 📄 run_app.sh                 # Llançador directe de l'aplicació per a Linux
+├── 📄 run_app.sh                 # Linux launcher script with auto-venv
 └── 📄 requirements.txt           # Dependències de Python
 ```
 
@@ -154,7 +158,7 @@ L'aplicació inclou un centre de control integrat accessible des del botó **`�
   - **Vocoder alVoCat 22kHz (100% Offline)** (~51,2 MB): vocoder neuronal del Projecte AINA d'alta fidelitat acústica a 22.050 Hz i normalització lingüística.
   - **Matxa-TTS v2 multiaccent (100% Offline)** (~260,2 MB): model acústic autònom en format ONNX amb 16 veus per a totes les variants dialectals del català (balear, central, nord-occidental, septentrional i valencià).
   - **UPC Ona FestCat (100% Offline)** (~63,2 MB): veu femenina neuronal d'alta fidelitat acústica de la Universitat Politècnica de Catalunya en format ONNX.
-  - **UPC Pau FestCat (100% Offline)** (~26,8 MB): veu masculina neuronal d'alta fidelitat acústica de la Universitat Politècnica de Catalunya en format ONNX.
+  - **UPC Pau FestCat (100% Offline)** (~26,8 MB): veu masculina neuronal de la Universitat Politècnica de Catalunya en format ONNX.
 - **Gestió del servei al núvol (Microsoft Neural ca-ES)**:
   - Permet utilitzar les veus Joana i Enric ocupant 0 MB locals, amb informació transparent sobre la necessitat de connexió a internet, límits de peticions per IP (*rate limiting*) i absència de SLA.
 - **Diagnòstic de maquinari («Comprovar el meu equip»)**:
