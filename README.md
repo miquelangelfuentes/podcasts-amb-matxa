@@ -11,6 +11,9 @@
 
 ## 📥 Descarrega directa per a Windows (.exe)
 
+> [!NOTE]
+> **Signatura de codi i seguretat**: Aquest projecte de codi obert utilitza el servei de signatura de codi gratuït de la [SignPath Foundation](https://signpath.org) (*Free code signing provided by SignPath Foundation*) per garantir l'autenticitat dels binaris per a Windows.
+
 Per utilitzar l'aplicació a Windows **sense necessitat d'instal·lar Python ni compilar**:
 1. Descarrega el paquet complet de la **versió oficial actualitzada v1.1.1**:
    👉 **[Descarregar PodcastsAmbMatxa v1.1.1 per a Windows (.zip)](https://github.com/miquelangelfuentes/podcasts-amb-matxa/releases/download/v1.1.1/PodcastsAmbMatxa-v1.1.1-Windows.zip)** (~150 MB)
@@ -185,4 +188,3 @@ En compliment de les directrius de desenvolupament educatiu responsable (guia VC
 2. **Validació acústica i d'àudio**: escolta exhaustiva i control de qualitat de les 18 veus neuronals (16 de Matxa-TTS v2 i 2 d'UPC FestCat), comprovació de l'encadenament suau (*cross-fade*) de la música de fons i verificació dels paràmetres de normalització EBU R128 (-16 LUFS) per evitar distorsions o artefactes acústics.
 3. **Bateria de proves automatitzada**: disseny i execució de la suite de proves de regressió (`test_features.py`) que audita la integritat dels models ONNX, la síntesi autònoma per CPU, el mesclador de pistes i l'exportació MP3.
 4. **Comprovació d'instal·lació i funcionament autònom**: proves manuals de l'executable i de l'entorn tant en sistemes Windows com Linux, verificant especialment el funcionament en mode avió (sense cap mena d'accés a internet).
-
