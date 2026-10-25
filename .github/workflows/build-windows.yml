@@ -1,0 +1,72 @@
+name: Compilació per a Windows (CI/CD)
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Baixar codi font del repositori
+        uses: actions/checkout@v4
+
+      - name: Configurar entorn de Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Instal·lar dependències de Python
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller piper-tts pathvalidate
+
+      - name: Executar proves automatitzades de funcionalitats
+        env:
+          SDL_VIDEODRIVER: dummy
+          SDL_AUDIODRIVER: dummy
+        run: |
+          python test_features.py
+
+      - name: Compilar paquet executable per a Windows (.exe)
+        run: |
+          python build_exe.py
+
+      - name: Pujar artefacte comprimit a GitHub Actions
+        id: upload-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PodcastsAmbMatxa-Windows
+          path: dist/PodcastsAmbMatxa-*-Windows.zip
+          if-no-files-found: error
+
+      # =========================================================================
+      # PAS DE SIGNPATH (S'activarà quan la SignPath Foundation aprovi el projecte)
+      # =========================================================================
+      # - name: Sol·licitar signatura digital a SignPath Foundation
+      #   if: github.event_name == 'release' && env.SIGNPATH_API_TOKEN != ''
+      #   uses: signpath/github-action-submit-signing-request@v3
+      #   with:
+      #     api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+      #     organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+      #     project-slug: 'podcasts-amb-matxa'
+      #     signing-policy-slug: 'release-signing'
+      #     github-artifact-id: ${{ steps.upload-artifact.outputs.artifact-id }}
+      #     wait-for-completion: true
+      #     output-artifact-directory: './dist/signed'
+      #   env:
+      #     SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+
+      - name: Adjuntar paquet a la Release de GitHub (si correspon)
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/PodcastsAmbMatxa-*-Windows.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
