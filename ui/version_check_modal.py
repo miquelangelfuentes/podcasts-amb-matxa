@@ -1,7 +1,7 @@
 """
 Finestra Modal de Comprovació d'Actualitzacions i Versió (Version Check Modal).
 Permet verificar si la versió local instal·lada està al dia amb el repositori
-oficial de GitHub (miquelangelfuentes/podcasts-amb-estil-i-matxa) i permet
+oficial de GitHub (miquelangelfuentes/podcasts-amb-matxa) i permet
 descarregar i aplicar actualitzacions automàticament.
 """
 
@@ -22,9 +22,9 @@ from ui.theme import MatchaTheme
 from ui.components import CleanButton
 
 
-APP_VERSION = "1.1.1"
+APP_VERSION = "1.1.2"
 GITHUB_OWNER = "miquelangelfuentes"
-GITHUB_REPO = "podcasts-amb-estil-i-matxa"
+GITHUB_REPO = "podcasts-amb-matxa"
 
 
 class VersionCheckModal(ctk.CTkToplevel):
