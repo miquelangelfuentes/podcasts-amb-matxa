@@ -4,6 +4,10 @@ on:
   workflow_dispatch:
   release:
     types: [published]
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build-windows.yml'
 
 permissions:
   contents: write
@@ -86,3 +90,40 @@ jobs:
           files: dist/PodcastsAmbMatxa-*-Windows.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Publicació puntual després de superar les proves i crear el ZIP.
+      - name: Publicar release v1.1.2
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $archive = "dist/PodcastsAmbMatxa-v1.1.2-Windows.zip"
+          if (-not (Test-Path $archive)) {
+              throw "Falta el ZIP Windows v1.1.2"
+          }
+          @'
+          ## Pòdcasts amb Matxa v1.1.2
+
+          ### Correccions
+          - Les pauses inserides al guió i les etiquetes SSML `<break>` ara generen segments de silenci independents.
+          - El comprovador de versions apunta al repositori oficial `miquelangelfuentes/podcasts-amb-matxa`.
+
+          ### Distribució
+          - ZIP de Windows compilat a partir del codi actual de la versió 1.1.2.
+          - Els models de veu offline es descarreguen des del gestor **Models** de l'aplicació quan es necessiten; no formen part del ZIP inicial.
+          - S'ha actualitzat la documentació legal i de privadesa.
+
+          Descarrega `PodcastsAmbMatxa-v1.1.2-Windows.zip`, extreu-lo i executa `PodcastsAmbMatxa.exe`.
+
+          **Signatura:** aquest binari encara no està signat per SignPath.
+          '@ | Set-Content -Path NOTES_v1.1.2.md -Encoding utf8
+          gh release view v1.1.2 --repo "${{ github.repository }}" *> $null
+          if ($LASTEXITCODE -eq 0) {
+              gh release upload v1.1.2 $archive --clobber --repo "${{ github.repository }}"
+          } else {
+              gh release create v1.1.2 $archive --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "Pòdcasts amb Matxa v1.1.2" --notes-file NOTES_v1.1.2.md --latest
+          }
+          if ($LASTEXITCODE -ne 0) {
+              throw "No s'ha pogut publicar el release"
+          }
