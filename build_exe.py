@@ -20,6 +20,15 @@ def build():
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
     dist_dir = os.path.join(base_dir, "dist")
+
+    # Assegurar la carpeta de models abans de PyInstaller.
+    # Els binaris neuronals són opcionals i es descarreguen amb el gestor de models.
+    models_dir = os.path.join(base_dir, "models")
+    os.makedirs(models_dir, exist_ok=True)
+    models_readme = os.path.join(models_dir, "README.txt")
+    if not os.path.exists(models_readme):
+        with open(models_readme, "w", encoding="utf-8") as f:
+            f.write("Els models de veu es poden descarregar des del gestor de components de Pòdcasts amb Matxa.\\n")
     build_dir = os.path.join(base_dir, "build")
     icon_path = os.path.join(base_dir, "assets", "icon.ico")
 
