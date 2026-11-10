@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
   release:
     types: [published]
-  push:
-    tags:
-      - 'v*'
+
+permissions:
+  contents: write
 
 jobs:
   build-windows:
@@ -37,6 +37,22 @@ jobs:
       - name: Compilar paquet executable per a Windows (.exe)
         run: |
           python build_exe.py
+
+      - name: Comprovar el contingut del paquet Windows
+        shell: pwsh
+        run: |
+          $zipPath = "dist/PodcastsAmbMatxa-v1.1.2-Windows.zip"
+          if (-not (Test-Path $zipPath)) { throw "No s'ha generat el paquet v1.1.2" }
+          Add-Type -AssemblyName System.IO.Compression
+          $archive = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path $zipPath).Path)
+          try {
+              $names = @($archive.Entries | ForEach-Object { $_.FullName })
+              if (-not ($names -contains "PodcastsAmbMatxa/PodcastsAmbMatxa.exe")) {
+                  throw "L'executable no figura al ZIP publicable"
+              }
+          } finally {
+              $archive.Dispose()
+          }
 
       - name: Pujar artefacte comprimit a GitHub Actions
         id: upload-artifact
