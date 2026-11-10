@@ -4,6 +4,17 @@ Tots els canvis rellevants, correccions (*fixes*) i novetats del projecte **Pòd
 
 ---
 
+## [1.1.2] - 2026-11-10
+
+### 🐛 Correccions
+* **Interpretació de pauses al guió:** les etiquetes SSML `<break>` i les pauses escrites dins d'una intervenció es converteixen en segments de silenci diferenciats, per conservar les pauses durant la síntesi local.
+* **Identificació de la versió:** el comprovador d'actualitzacions utilitza la versió `1.1.2` i el repositori oficial `miquelangelfuentes/podcasts-amb-matxa`.
+
+### 📦 Distribució i documentació
+* **Paquet Windows:** compilació automatitzada del codi actual i generació del ZIP `PodcastsAmbMatxa-v1.1.2-Windows.zip`, amb el gestor de models integrat.
+* **Models de veu:** els models neuronals de gran mida es descarreguen des del gestor de components de l'aplicació; no es distribueixen dins del repositori de codi font.
+* **Documentació i llicències:** actualització de la política de privadesa, la documentació sobre la signatura de codi i el text oficial de la llicència GNU AGPL-3.0.
+
 ## [1.1.1] - 2026-10-06
 
 ### ✨ Novetats
