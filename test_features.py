@@ -330,9 +330,9 @@ def test_upc_engine():
 def test_version_check():
     print("\n--- 10. Provant comprovador d'actualitzacions i versió GitHub ---")
     from ui.version_check_modal import APP_VERSION, GITHUB_OWNER, GITHUB_REPO
-    assert APP_VERSION == "1.1.1"
+    assert APP_VERSION == "1.1.2"
     assert GITHUB_OWNER == "miquelangelfuentes"
-    assert GITHUB_REPO == "podcasts-amb-estil-i-matxa"
+    assert GITHUB_REPO == "podcasts-amb-matxa"
     print(f"[OK] Comprovador de versió configurat: v{APP_VERSION} a {GITHUB_OWNER}/{GITHUB_REPO}")
 
 
