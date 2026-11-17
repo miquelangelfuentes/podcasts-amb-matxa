@@ -3,6 +3,10 @@ name: Compilació per a Windows (CI/CD)
 on:
   workflow_dispatch:
   pull_request:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build-windows.yml'
   release:
     types: [published]
 
@@ -121,3 +125,24 @@ jobs:
           files: dist/PodcastsAmbMatxa-*-Windows.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Publicació puntual de v1.1.4 després de superar les proves i validar el ZIP.
+      - name: Publicar release v1.1.4
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $archive = "dist/PodcastsAmbMatxa-v1.1.4-Windows.zip"
+          if (-not (Test-Path $archive)) {
+              throw "No s'ha generat el ZIP v1.1.4."
+          }
+          gh release view v1.1.4 --repo "${{ github.repository }}" *> $null
+          if ($LASTEXITCODE -eq 0) {
+              gh release upload v1.1.4 $archive --clobber --repo "${{ github.repository }}"
+          } else {
+              gh release create v1.1.4 $archive --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "Pòdcasts amb Matxa v1.1.4" --notes-file docs/RELEASE_NOTES_v1.1.4.md --latest
+          }
+          if ($LASTEXITCODE -ne 0) {
+              throw "No s'ha pogut publicar la release v1.1.4."
+          }
