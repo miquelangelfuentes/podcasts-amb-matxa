@@ -18,11 +18,18 @@ import requests
 import customtkinter as ctk
 from typing import Optional, Dict, Any
 
+from core.update_manager import (
+    extract_windows_release,
+    get_windows_asset,
+    is_newer_release,
+    make_windows_update_script,
+)
+
 from ui.theme import MatchaTheme
 from ui.components import CleanButton
 
 
-APP_VERSION = "1.1.3"
+APP_VERSION = "1.1.4"
 GITHUB_OWNER = "miquelangelfuentes"
 GITHUB_REPO = "podcasts-amb-matxa"
 
@@ -46,8 +53,13 @@ class VersionCheckModal(ctk.CTkToplevel):
         self._latest_commit_msg = ""
         self._latest_release_tag = ""
         self._is_updating = False
+        self._latest_release_data = None
+        self._pending_updater_script = None
+        self._pending_update_stage = None
+        self._updater_launched = False
 
         self._build_ui()
+        self.protocol("WM_DELETE_WINDOW", self._close_modal)
         self._start_check_thread()
 
     def _set_modal_icon(self):
@@ -173,217 +185,258 @@ class VersionCheckModal(ctk.CTkToplevel):
             text="Tanca",
             width=80,
             height=32,
-            command=self.destroy
+            command=self._close_modal
         )
         btn_close.pack(side="right", padx=12, pady=10)
 
     def _start_check_thread(self):
-        t = threading.Thread(target=self._check_github_worker, daemon=True)
-        t.start()
+        threading.Thread(target=self._check_github_worker, daemon=True).start()
 
     def _check_github_worker(self):
-        time.sleep(0.3)
+        """Consulta la darrera *release*; els commits no són versions instal·lables."""
         try:
-            headers = {"User-Agent": "PodcastsAmbMatxa-Updater"}
-            commits_url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/commits?per_page=5"
-
-            res = requests.get(commits_url, headers=headers, timeout=12)
-            if res.status_code == 200:
-                commits = res.json()
-                if commits and len(commits) > 0:
-                    latest = commits[0]
-                    self._latest_commit_sha = latest.get("sha", "")[:7]
-                    commit_msg = latest.get("commit", {}).get("message", "").split("\n")[0]
-                    self._latest_commit_msg = commit_msg
-                    author = latest.get("commit", {}).get("author", {}).get("name", "Autor")
-                    date_str = latest.get("commit", {}).get("author", {}).get("date", "")[:10]
-
-                    # Recopilar llista de canvis
-                    change_lines = []
-                    for c in commits:
-                        sha = c.get("sha", "")[:7]
-                        msg = c.get("commit", {}).get("message", "").split("\n")[0]
-                        dt = c.get("commit", {}).get("author", {}).get("date", "")[:10]
-                        change_lines.append(f"• [{sha}] {msg}\n  ({dt})")
-
-                    changes_text = "\n\n".join(change_lines)
-
-                    self.after(0, lambda: self._on_check_success(self._latest_commit_sha, commit_msg, changes_text))
-                    return
-
-            # Si falla commits, intentem releases
-            rel_url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"
-            r_rel = requests.get(rel_url, headers=headers, timeout=10)
-            if r_rel.status_code == 200:
-                rel = r_rel.json()
-                tag = rel.get("tag_name", "v1.0.0")
-                body = rel.get("body", "Sense notes de la versió.")
-                self.after(0, lambda: self._on_check_success(tag, tag, body))
-                return
-
-            self.after(0, lambda: self._on_check_error(f"Codi de resposta de GitHub: {res.status_code}"))
-
+            url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"
+            headers = {
+                "User-Agent": "PodcastsAmbMatxa-Updater",
+                "Accept": "application/vnd.github+json",
+                "Cache-Control": "no-cache",
+            }
+            response = requests.get(url, headers=headers, timeout=(10, 20))
+            response.raise_for_status()
+            release = response.json()
+            # Comprovem que el tag és vàlid abans d'actualitzar la interfície.
+            is_newer_release(APP_VERSION, release.get("tag_name", ""))
+            self.after(0, lambda data=release: self._on_check_success(data))
         except Exception as e:
-            self.after(0, lambda: self._on_check_error(str(e)))
+            error_message = str(e)
+            self.after(0, lambda message=error_message: self._on_check_error(message))
 
-    def _on_check_success(self, version_or_sha: str, summary: str, details: str):
-        try:
-            self.prog_bar.stop()
-            self.prog_bar.configure(mode="determinate")
-            self.prog_bar.set(1.0)
-        except Exception:
-            pass
+    def _on_check_success(self, release: dict):
+        self._latest_release_data = release
+        self._latest_release_tag = release["tag_name"]
+        self.prog_bar.stop()
+        self.prog_bar.configure(mode="determinate")
+        self.prog_bar.set(1.0)
 
-        # Mostrem missatge
-        self.state_lbl.configure(
-            text=f"Darrer estat al repositori: {version_or_sha}\n{summary}",
-            wraplength=580,
-            text_color=MatchaTheme.TEXT_MAIN
-        )
+        newer = is_newer_release(APP_VERSION, self._latest_release_tag)
+        details = release.get("body") or "La publicació no té notes de versió."
         self.commits_box.configure(state="normal")
         self.commits_box.delete("1.0", "end")
         self.commits_box.insert("1.0", details)
         self.commits_box.configure(state="disabled")
-        self._update_available = True
-        self.btn_update.configure(state="normal")
+
+        if newer:
+            try:
+                if getattr(sys, "frozen", False):
+                    get_windows_asset(release)
+            except ValueError as e:
+                self._update_available = False
+                self.state_lbl.configure(
+                    text=f"Hi ha una nova versió ({self._latest_release_tag}), però no té un ZIP Windows compatible: {e}",
+                    text_color="#c0392b",
+                )
+                self.btn_update.configure(state="disabled")
+                return
+
+            self._update_available = True
+            self.state_lbl.configure(
+                text=f"Nova versió disponible: {self._latest_release_tag} (instal·lada: v{APP_VERSION}).",
+                text_color=MatchaTheme.PRIMARY,
+            )
+            self.btn_update.configure(state="normal", text="⬇️ Actualitza l'aplicació")
+        else:
+            self._update_available = False
+            self.state_lbl.configure(
+                text=f"Ja tens la darrera versió publicada (v{APP_VERSION}).",
+                text_color=MatchaTheme.TEXT_MAIN,
+            )
+            self.btn_update.configure(state="disabled", text="✅ Aplicació al dia")
 
     def _on_check_error(self, err_msg: str):
-        try:
-            self.prog_bar.stop()
-            self.prog_bar.configure(mode="determinate")
-            self.prog_bar.set(0.0)
-        except Exception:
-            pass
-
+        self.prog_bar.stop()
+        self.prog_bar.configure(mode="determinate")
+        self.prog_bar.set(0.0)
+        self._update_available = False
+        self.btn_update.configure(state="disabled")
         self.state_lbl.configure(
-            text=f"No s'ha pogut connectar amb GitHub per verificar la versió.\n({err_msg})",
+            text=f"No s'ha pogut verificar la darrera versió publicada:\n{err_msg}",
             wraplength=580,
-            text_color="#c0392b"
+            text_color="#c0392b",
         )
         self.commits_box.configure(state="normal")
         self.commits_box.delete("1.0", "end")
         self.commits_box.insert(
             "1.0",
-            "Revisa la connexió a internet o visita directament el repositori a GitHub per descarregar actualitzacions manuals."
+            "Pots descarregar el paquet manualment des de la pàgina de Releases de GitHub.",
         )
         self.commits_box.configure(state="disabled")
 
     def _open_github_repo(self):
-        webbrowser.open(f"https://github.com/{GITHUB_OWNER}/{GITHUB_REPO}")
+        webbrowser.open(f"https://github.com/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest")
 
     def _on_update_clicked(self):
-        if self._is_updating:
+        if self._is_updating or not self._update_available:
             return
+        if self._pending_updater_script and os.path.isfile(self._pending_updater_script):
+            self._prompt_restart_updater(self._pending_updater_script)
+            return
+
+        # No modifiquem automàticament una còpia de desenvolupament o un checkout Git.
+        if not getattr(sys, "frozen", False):
+            from tkinter import messagebox
+            messagebox.showinfo(
+                "Actualització del codi font",
+                "Aquesta instal·lació s'executa des del codi font. "
+                "Actualitza el repositori amb Git o descarrega la release des de GitHub.",
+            )
+            self._open_github_repo()
+            return
+
         self._is_updating = True
         self.btn_update.configure(state="disabled", text="⏳ Descarregant...")
-
-        t = threading.Thread(target=self._run_auto_update, daemon=True)
-        t.start()
+        threading.Thread(target=self._run_auto_update, daemon=True).start()
 
     def _run_auto_update(self):
+        """Descarrega un ZIP versionat, el valida i prepara l'ajudant de Windows."""
+        import shutil
+
+        stage = None
         try:
-            temp_dir = tempfile.gettempdir()
-            zip_path = os.path.join(temp_dir, "podcasts_update.zip")
+            release = self._latest_release_data
+            if not release or not is_newer_release(APP_VERSION, release["tag_name"]):
+                raise RuntimeError("No s'ha confirmat una release més recent.")
+            asset = get_windows_asset(release)
+            stage = tempfile.mkdtemp(prefix="podcasts_matxa_update_")
+            archive_path = os.path.join(stage, asset["name"])
+            extract_path = os.path.join(stage, "extracted")
 
-            if getattr(sys, "frozen", False):
-                # En executable compilat, descarregar el paquet binari oficial de la darrera release
-                rel_url = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"
-                zip_url = None
-                try:
-                    r_rel = requests.get(rel_url, timeout=10)
-                    if r_rel.status_code == 200:
-                        for a in r_rel.json().get("assets", []):
-                            if a.get("name", "").endswith(".zip"):
-                                zip_url = a.get("browser_download_url")
-                                break
-                except Exception:
-                    pass
-                if not zip_url:
-                    zip_url = f"https://github.com/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest/download/PodcastsAmbMatxa-v{APP_VERSION}-Windows.zip"
-            else:
-                zip_url = f"https://github.com/{GITHUB_OWNER}/{GITHUB_REPO}/archive/refs/heads/main.zip"
+            self.after(0, lambda: self.state_lbl.configure(
+                text=f"Descarregant {release['tag_name']} des de GitHub...",
+                text_color=MatchaTheme.PRIMARY,
+            ))
+            response = requests.get(
+                asset["browser_download_url"],
+                stream=True,
+                headers={"User-Agent": "PodcastsAmbMatxa-Updater"},
+                timeout=(15, 120),
+            )
+            response.raise_for_status()
+            try:
+                total_bytes = 0
+                expected_bytes = int(response.headers.get("Content-Length", 0))
+                last_reported_mb = 0
+                with open(archive_path, "wb") as output:
+                    for chunk in response.iter_content(chunk_size=1024 * 1024):
+                        if chunk:
+                            total_bytes += len(chunk)
+                            if total_bytes > 1024 * 1024 * 1024:
+                                raise ValueError("El paquet supera la mida màxima permesa (1 GB).")
+                            output.write(chunk)
+                            current_mb = total_bytes // (1024 * 1024)
+                            if current_mb - last_reported_mb >= 10:
+                                last_reported_mb = current_mb
+                                total_mb = (expected_bytes + 1048575) // 1048576 if expected_bytes else 0
+                                message = (
+                                    f"Descarregant {release['tag_name']}: {current_mb} de {total_mb} MB..."
+                                    if total_mb else
+                                    f"Descarregant {release['tag_name']}: {current_mb} MB..."
+                                )
+                                self.after(0, lambda msg=message: self.state_lbl.configure(text=msg))
+            finally:
+                response.close()
 
-            self.after(0, lambda: self.state_lbl.configure(text="Descarregant el paquet més recent des de GitHub...", text_color=MatchaTheme.PRIMARY))
+            if not zipfile.is_zipfile(archive_path):
+                raise RuntimeError("La descàrrega no és un ZIP vàlid.")
+            self.after(0, lambda: self.state_lbl.configure(
+                text="Verificant i descomprimint el paquet d'actualització...",
+                text_color=MatchaTheme.PRIMARY,
+            ))
+            source_dir = extract_windows_release(archive_path, extract_path)
+            exe_dir = os.path.dirname(os.path.abspath(sys.executable))
+            # L'ajudant ha d'estar FORA del paquet temporal per poder-lo esborrar.
+            updater_file = tempfile.NamedTemporaryFile(
+                mode="w", prefix="podcasts_matxa_apply_", suffix=".ps1",
+                encoding="utf-8-sig", delete=False,
+            )
+            script_path = updater_file.name
+            updater_file.close()
+            script = make_windows_update_script(
+                source_dir=source_dir,
+                install_dir=exe_dir,
+                exe_path=os.path.abspath(sys.executable),
+                parent_pid=os.getpid(),
+                version=release["tag_name"],
+                staging_dir=stage,
+            )
+            # UTF-8 amb BOM: PowerShell 5.1 pot llegir rutes amb accents.
+            with open(script_path, "w", encoding="utf-8-sig") as script_file:
+                script_file.write(script)
 
-            # Descarregar zip
-            r = requests.get(zip_url, stream=True, timeout=120)
-            r.raise_for_status()
-            with open(zip_path, "wb") as f:
-                for chunk in r.iter_content(chunk_size=1024 * 1024):
-                    if chunk:
-                        f.write(chunk)
-
-            self.after(0, lambda: self.state_lbl.configure(text="Descomprimint fitxers d'actualització...", text_color=MatchaTheme.PRIMARY))
-
-            extract_dir = os.path.join(temp_dir, "podcasts_update_extracted")
-            if os.path.exists(extract_dir):
-                import shutil
-                shutil.rmtree(extract_dir, ignore_errors=True)
-            os.makedirs(extract_dir, exist_ok=True)
-
-            with zipfile.ZipFile(zip_path, "r") as z:
-                z.extractall(extract_dir)
-
-            # Trobar directori arrel del zip
-            subdirs = [os.path.join(extract_dir, d) for d in os.listdir(extract_dir) if os.path.isdir(os.path.join(extract_dir, d))]
-            source_root = subdirs[0] if subdirs else extract_dir
-
-            # Si estem en entorn de desenvolupament (font directe)
-            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            if not getattr(sys, "frozen", False):
-                # Còpia de fitxers de codi (preservant models i .venv)
-                for item in os.listdir(source_root):
-                    if item in [".venv", "models", ".git", "dist", "build"]:
-                        continue
-                    s = os.path.join(source_root, item)
-                    d = os.path.join(base_dir, item)
-                    if os.path.isdir(s):
-                        import shutil
-                        shutil.copytree(s, d, dirs_exist_ok=True)
-                    else:
-                        import shutil
-                        shutil.copy2(s, d)
-
-                self.after(0, lambda: self._on_update_completed("L'aplicació s'ha actualitzat correctament amb la darrera versió de GitHub!\nReinicia l'aplicació per carregar els canvis."))
-            else:
-                # Si estem en binari congelat (.exe)
-                # Creem script de reemplaçament per lot que espera a que es tanqui l'aplicació
-                exe_dir = os.path.dirname(sys.executable)
-                bat_path = os.path.join(temp_dir, "update_podcasts.bat")
-                bat_content = f"""@echo off
-echo Actualitzant Podcasts amb Matxa...
-timeout /t 2 /nobreak > nul
-robocopy "{source_root}" "{exe_dir}" /E /XO /XD models .venv /R:2 /W:2 > nul
-start "" "{sys.executable}"
-del "%~f0"
-"""
-                with open(bat_path, "w", encoding="utf-8") as bf:
-                    bf.write(bat_content)
-
-                self.after(0, lambda: self._prompt_restart_updater(bat_path))
-
+            self._pending_updater_script = script_path
+            self._pending_update_stage = stage
+            self.after(0, lambda path=script_path: self._prompt_restart_updater(path))
         except Exception as e:
-            self.after(0, lambda: self.state_lbl.configure(text=f"Error en l'actualització: {e}", text_color="#c0392b"))
-            self.after(0, lambda: self.btn_update.configure(state="normal", text="Reintenta actualitzar"))
+            error_message = str(e)
+            if stage:
+                shutil.rmtree(stage, ignore_errors=True)
+            self.after(0, lambda message=error_message: self._on_update_error(message))
+        finally:
             self._is_updating = False
 
-    def _on_update_completed(self, msg: str):
-        self.state_lbl.configure(text="✅ Actualització completada amb èxit!", text_color="#27ae60")
-        self.btn_update.configure(state="disabled", text="✅ Actualitzat")
-        from tkinter import messagebox
-        messagebox.showinfo("Actualització completada", msg)
-
-    def _prompt_restart_updater(self, bat_path: str):
-        from tkinter import messagebox
-        res = messagebox.askyesno(
-            "Reiniciar per actualitzar",
-            "L'actualització s'ha preparat correctament.\n\n"
-            "L'aplicació s'ha de tancar ara per copiar els fitxers nous i es reiniciarà automàticament en un parell de segons.\n\n"
-            "Vols reiniciar ara?"
+    def _on_update_error(self, error_message: str):
+        self.state_lbl.configure(
+            text=f"Error en preparar l'actualització: {error_message}",
+            text_color="#c0392b",
         )
-        if res:
-            subprocess.Popen([bat_path], shell=True)
-            sys.exit(0)
-        else:
-            self.state_lbl.configure(text="Actualització preparada. S'aplicarà en la propera sessió.", text_color=MatchaTheme.TEXT_MAIN)
-            self.btn_update.configure(state="normal", text="Aplica ara")
+        self.btn_update.configure(state="normal", text="Reintenta actualitzar")
+
+    def _prompt_restart_updater(self, script_path: str):
+        from tkinter import messagebox
+
+        self.btn_update.configure(state="normal", text="Aplica ara")
+        answer = messagebox.askyesno(
+            "Reiniciar per actualitzar",
+            f"S'ha descarregat i verificat la versió {self._latest_release_tag}.\n\n"
+            "Cal tancar l'aplicació perquè Windows pugui substituir els fitxers. "
+            "Els models instal·lats es conservaran.\n\n"
+            "Vols aplicar l'actualització i reiniciar ara?",
+        )
+        if not answer:
+            self.state_lbl.configure(
+                text="L'actualització està preparada. Prem «Aplica ara» quan vulguis reiniciar.",
+                text_color=MatchaTheme.TEXT_MAIN,
+            )
+            return
+
+        try:
+            # Ajudant extern, sense consola: espera fins que aquest procés s'ha tancat.
+            subprocess.Popen(
+                [
+                    "powershell.exe", "-NoProfile", "-NonInteractive",
+                    "-ExecutionPolicy", "Bypass", "-File", script_path,
+                ],
+                creationflags=0x08000000 | 0x00000200,
+                close_fds=True,
+            )
+        except Exception as e:
+            self._on_update_error(str(e))
+            return
+
+        self._updater_launched = True
+        self.parent.destroy()
+        sys.exit(0)
+
+    def _close_modal(self):
+        """Allibera una descàrrega ajornada si es tanca el diàleg."""
+        import shutil
+        if not self._updater_launched:
+            if self._pending_update_stage:
+                shutil.rmtree(self._pending_update_stage, ignore_errors=True)
+                self._pending_update_stage = None
+            if self._pending_updater_script:
+                try:
+                    os.unlink(self._pending_updater_script)
+                except OSError:
+                    pass
+                self._pending_updater_script = None
+        self.destroy()

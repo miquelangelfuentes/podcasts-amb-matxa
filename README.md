@@ -35,6 +35,10 @@ Per utilitzar l'aplicació a Windows **sense necessitat d'instal·lar Python ni 
 3. Executa directament `PodcastsAmbMatxa.exe`.
 4. A la barra superior, fes clic a **`📦 Models`** per descarregar els models de síntesi de veu des d'Hugging Face amb un sol clic.
 
+> [!IMPORTANT]
+> **Actualització des de la v1.1.2 o la v1.1.3:** l'actualitzador antic pot no completar la substitució dels fitxers a Windows. Si encara veus la versió anterior després d'actualitzar, tanca completament el programa, descarrega el ZIP de la **v1.1.4 o posterior** i copia el contingut de la carpeta `PodcastsAmbMatxa` del ZIP **damunt de la carpeta de la teva instal·lació actual**, acceptant substituir els fitxers. No eliminis la carpeta actual abans de copiar; fes una còpia de seguretat dels models locals, que acostumen a estar a `PodcastsAmbMatxa/_internal/models`. Després torna a executar `PodcastsAmbMatxa.exe`. A partir de la v1.1.4, l'actualitzador comprova la release i verifica l'executable nou abans de reiniciar.
+
+
 > [!NOTE]
 > La pàgina de *Releases* mostra sempre la darrera versió publicada i els fitxers disponibles. El codi de `main` pot tenir un número de versió superior mentre es prepara una nova publicació.
 

@@ -4,6 +4,23 @@ Tots els canvis rellevants, correccions (*fixes*) i novetats del projecte **Pòd
 
 ---
 
+## [1.1.4] - 2026-11-17
+
+### 🐛 Correcció de l'actualització automàtica
+* **Comprovació de versions:** consulta la darrera release publicada i compara la versió semàntica amb la instal·lada, en lloc de confondre commits amb versions.
+* **Descàrrega fiable:** selecciona explícitament el ZIP Windows de la release i deixa d'utilitzar l'enllaç de la versió instal·lada com a alternativa.
+* **Instal·lació a Windows:** valida el ZIP, espera que l'executable anterior es tanqui i substitueix els fitxers amb un procés extern, sense un retard fix.
+* **Verificació:** comprova el resultat de Robocopy i l'empremta SHA-256 de l'executable abans de reiniciar.
+* **Dades locals:** conserva els models i els fitxers propis de l'usuari. Els errors es registren al directori temporal.
+* **Missatges:** permet aplicar una actualització descarregada després d'ajornar el reinici i mostra quan l'aplicació ja està al dia.
+
+### 🧪 Qualitat i distribució
+* Proves de regressió de comparació de versions, descàrrega d'artefactes, validació dels paquets i procés d'actualització.
+* Paquet oficial de Windows v1.1.4.
+
+### ℹ️ Actualització des de versions anteriors
+* Les instal·lacions amb l'actualitzador defectuós han de descarregar el ZIP oficial de la v1.1.4 una sola vegada i conservar els models locals.
+
 ## [1.1.3] - 2026-11-17
 
 ### 🐛 Correccions
