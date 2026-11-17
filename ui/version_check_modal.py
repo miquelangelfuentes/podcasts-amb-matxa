@@ -323,6 +323,8 @@ class VersionCheckModal(ctk.CTkToplevel):
             response.raise_for_status()
             try:
                 total_bytes = 0
+                expected_bytes = int(response.headers.get("Content-Length", 0))
+                last_reported_mb = 0
                 with open(archive_path, "wb") as output:
                     for chunk in response.iter_content(chunk_size=1024 * 1024):
                         if chunk:
@@ -330,11 +332,25 @@ class VersionCheckModal(ctk.CTkToplevel):
                             if total_bytes > 1024 * 1024 * 1024:
                                 raise ValueError("El paquet supera la mida màxima permesa (1 GB).")
                             output.write(chunk)
+                            current_mb = total_bytes // (1024 * 1024)
+                            if current_mb - last_reported_mb >= 10:
+                                last_reported_mb = current_mb
+                                total_mb = (expected_bytes + 1048575) // 1048576 if expected_bytes else 0
+                                message = (
+                                    f"Descarregant {release['tag_name']}: {current_mb} de {total_mb} MB..."
+                                    if total_mb else
+                                    f"Descarregant {release['tag_name']}: {current_mb} MB..."
+                                )
+                                self.after(0, lambda msg=message: self.state_lbl.configure(text=msg))
             finally:
                 response.close()
 
             if not zipfile.is_zipfile(archive_path):
                 raise RuntimeError("La descàrrega no és un ZIP vàlid.")
+            self.after(0, lambda: self.state_lbl.configure(
+                text="Verificant i descomprimint el paquet d'actualització...",
+                text_color=MatchaTheme.PRIMARY,
+            ))
             source_dir = extract_windows_release(archive_path, extract_path)
             exe_dir = os.path.dirname(os.path.abspath(sys.executable))
             # L'ajudant ha d'estar FORA del paquet temporal per poder-lo esborrar.
