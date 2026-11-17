@@ -36,6 +36,33 @@ jobs:
           python test_features.py
           python -m unittest -v test_updater.py
 
+      - name: Comprovar sintaxi de l'ajudant d'actualització PowerShell
+        shell: pwsh
+        run: |
+          @'
+          import os
+          from core.update_manager import make_windows_update_script
+          root = os.getcwd()
+          target = os.path.join(root, "dist", "PodcastsAmbMatxa")
+          src = os.path.join(root, "updater_source")
+          os.makedirs(target, exist_ok=True)
+          script = make_windows_update_script(
+              src, target, os.path.join(target, "PodcastsAmbMatxa.exe"),
+              123456, "v1.1.4", src,
+          )
+          with open("validate-updater.ps1", "w", encoding="utf-8-sig") as file:
+              file.write(script)
+          '@ | python -
+          $tokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path "validate-updater.ps1").Path, [ref]$tokens, [ref]$parseErrors
+          ) | Out-Null
+          if ($parseErrors.Count -gt 0) {
+              $parseErrors | ForEach-Object { Write-Host $_ }
+              throw "La sintaxi del PowerShell d'actualització no és vàlida."
+          }
+
       - name: Compilar paquet executable per a Windows (.exe)
         run: |
           python build_exe.py
