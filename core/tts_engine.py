@@ -220,9 +220,14 @@ class MicrosoftNeuralCatalanEngine:
         try:
             # Execució asíncrona segura
             audio_bytes = asyncio.run(_call())
+            if not audio_bytes:
+                raise RuntimeError("El servei de Microsoft no ha retornat dades d'àudio.")
+
             audio, sr = sf.read(io.BytesIO(audio_bytes))
             if audio.ndim > 1:
                 audio = np.mean(audio, axis=1)
+            if audio.size == 0 or not np.all(np.isfinite(audio)) or np.max(np.abs(audio)) < 1e-5:
+                raise RuntimeError("El servei de Microsoft ha retornat àudio buit o silenciós.")
 
             # Resample al sample_rate de l'aplicació (22050 Hz)
             if sr != self.sample_rate:
@@ -231,8 +236,13 @@ class MicrosoftNeuralCatalanEngine:
 
             return audio.astype(np.float32)
         except Exception as e:
-            print(f"Avís a la síntesi Edge: {e}")
-            return self._synthesize_fallback(text)
+            # La fallada mai s'ha de convertir en un podcast falsament correcte.
+            # La interfície mostrarà el problema i l'usuari podrà triar un motor offline.
+            raise RuntimeError(
+                f"No s'ha pogut sintetitzar amb Microsoft Neural: {e}. "
+                "Comprova la connexió i el rellotge de l'equip; "
+                "cal edge-tts 7.3.1 o posterior."
+            ) from e
 
     def _synthesize_fallback(self, text: str) -> np.ndarray:
         """Síntesi de suport mitjançant el motor de veu local de Windows (SAPI5)."""

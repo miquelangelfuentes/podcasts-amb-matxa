@@ -183,6 +183,72 @@ def test_voice_preview_manager():
     print("[OK] Frases dialectals personalitzades verificades correctament.")
 
 
+
+def test_neural_previews_use_bundled_wavs():
+    """Les mostres històriques de Joana i Enric han de funcionar offline."""
+    print("\n--- 4b. Mostres neuronals preenregistrades ---")
+    mgr = VoicePreviewManager()
+    for voice in ("joana", "enric"):
+        path = mgr.get_cached_path("Microsoft Neural ca-ES", voice)
+        assert os.path.basename(path) == f"preview_styletts_2_{voice}.wav", path
+        assert mgr.is_cached("Microsoft Neural ca-ES", voice), path
+    print("[OK] Joana i Enric reutilitzen els WAV de recursos.")
+
+
+def test_silent_previews_are_rejected():
+    """Una resposta silenciosa no s'ha de desar com una mostra vàlida."""
+    import threading
+    import tempfile
+    import numpy as np
+
+    class SilentEngine:
+        name = "Test Cloud"
+        sample_rate = 22050
+
+        def synthesize_utterance(self, text, voice_id):
+            return np.zeros(11025, dtype=np.float32)
+
+    with tempfile.TemporaryDirectory() as cache_dir:
+        mgr = VoicePreviewManager(cache_dir=cache_dir)
+        errors = []
+        done = threading.Event()
+
+        def on_error(message):
+            errors.append(message)
+            done.set()
+
+        mgr.play_preview(SilentEngine(), "joana", on_error=on_error)
+        assert done.wait(5), "El fil de la mostra no ha acabat a temps."
+        assert errors and "silenciosa" in errors[0], errors
+        assert not os.path.exists(os.path.join(cache_dir, "preview_test_cloud_joana.wav"))
+    print("[OK] Mostres silencioses rebutjades sense embrutar el cau.")
+
+
+def test_edge_service_failures_are_not_silent():
+    """Una petició fallida al núvol ha de generar un error útil."""
+    from unittest.mock import patch
+    from core.tts_engine import MicrosoftNeuralCatalanEngine
+
+    class FailingCommunicate:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def stream(self):
+            raise ConnectionError("403 simulat")
+            yield {"type": "audio", "data": b""}
+
+    engine = object.__new__(MicrosoftNeuralCatalanEngine)
+    engine.sample_rate = 22050
+    with patch("core.tts_engine.edge_tts.Communicate", FailingCommunicate):
+        try:
+            engine._synthesize_edge("Hola", "ca-ES-JoanaNeural", "+0%", "+0Hz")
+        except RuntimeError as exc:
+            assert "403 simulat" in str(exc), str(exc)
+        else:
+            raise AssertionError("La síntesi ha ocultat una fallada del servei Edge TTS.")
+    print("[OK] Errors d'Edge TTS propagats a la interfície.")
+
+
 def test_theme_and_accessibility():
     print("\n--- 5. Provant tema i colors verd matxa pastel ---")
     assert MatchaTheme.BG_MAIN.startswith("#"), "El fons principal ha de ser un color hex vàlid"
@@ -330,7 +396,7 @@ def test_upc_engine():
 def test_version_check():
     print("\n--- 10. Provant comprovador d'actualitzacions i versió GitHub ---")
     from ui.version_check_modal import APP_VERSION, GITHUB_OWNER, GITHUB_REPO
-    assert APP_VERSION == "1.1.2"
+    assert APP_VERSION == "1.1.3"
     assert GITHUB_OWNER == "miquelangelfuentes"
     assert GITHUB_REPO == "podcasts-amb-matxa"
     print(f"[OK] Comprovador de versió configurat: v{APP_VERSION} a {GITHUB_OWNER}/{GITHUB_REPO}")
@@ -341,6 +407,9 @@ if __name__ == "__main__":
     test_script_synchronization()
     test_voice_structure_templates()
     test_voice_preview_manager()
+    test_neural_previews_use_bundled_wavs()
+    test_silent_previews_are_rejected()
+    test_edge_service_failures_are_not_silent()
     test_theme_and_accessibility()
     test_default_model_and_naming()
     test_components_manager()
