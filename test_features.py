@@ -186,7 +186,7 @@ def test_voice_preview_manager():
 
 def test_neural_previews_use_bundled_wavs():
     """Les mostres històriques de Joana i Enric han de funcionar offline."""
-    print("\\n--- 4b. Mostres neuronals preenregistrades ---")
+    print("\n--- 4b. Mostres neuronals preenregistrades ---")
     mgr = VoicePreviewManager()
     for voice in ("joana", "enric"):
         path = mgr.get_cached_path("Microsoft Neural ca-ES", voice)
@@ -199,9 +199,10 @@ def test_silent_previews_are_rejected():
     """Una resposta silenciosa no s'ha de desar com una mostra vàlida."""
     import threading
     import tempfile
+    import numpy as np
 
     class SilentEngine:
-        name = "Test Neural"
+        name = "Test Cloud"
         sample_rate = 22050
 
         def synthesize_utterance(self, text, voice_id):
@@ -219,7 +220,7 @@ def test_silent_previews_are_rejected():
         mgr.play_preview(SilentEngine(), "joana", on_error=on_error)
         assert done.wait(5), "El fil de la mostra no ha acabat a temps."
         assert errors and "silenciosa" in errors[0], errors
-        assert not os.path.exists(os.path.join(cache_dir, "preview_test_neural_joana.wav"))
+        assert not os.path.exists(os.path.join(cache_dir, "preview_test_cloud_joana.wav"))
     print("[OK] Mostres silencioses rebutjades sense embrutar el cau.")
 
 
