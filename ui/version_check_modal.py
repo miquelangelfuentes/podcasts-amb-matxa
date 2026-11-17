@@ -22,7 +22,7 @@ from ui.theme import MatchaTheme
 from ui.components import CleanButton
 
 
-APP_VERSION = "1.1.2"
+APP_VERSION = "1.1.3"
 GITHUB_OWNER = "miquelangelfuentes"
 GITHUB_REPO = "podcasts-amb-matxa"
 
