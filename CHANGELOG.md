@@ -4,6 +4,19 @@ Tots els canvis rellevants, correccions (*fixes*) i novetats del projecte **Pòd
 
 ---
 
+## [1.1.3] - 2026-11-17
+
+### 🐛 Correccions
+* **Mostres de Joana i Enric:** es recupera la compatibilitat amb els WAV preenregistrats del motor neuronal, tant a l'entorn de desenvolupament com al paquet executable.
+* **Síntesi en línia:** s'actualitza `edge-tts` a la versió mínima `7.3.1` i es mostren els errors de connexió o de resposta en lloc de retornar silencis.
+* **Memòria cau:** es rebutja la síntesi de mostres silencioses o invàlides i s'invalida el cau anterior.
+* **Interfície:** es corregeix la propagació d'errors del fil secundari de generació i s'informa de les fallades amb un diàleg.
+
+### 🧪 Verificació i distribució
+* Nous tests de regressió de les mostres preenregistrades i de les fallades d'Edge TTS.
+* Actualització del comprovador de versions i del ZIP oficial de Windows a `1.1.3`.
+* Els motors autònoms Matxa-TTS v2 i UPC FestCat no canvien el seu comportament.
+
 ## [1.1.2] - 2026-11-10
 
 ### 🐛 Correccions
