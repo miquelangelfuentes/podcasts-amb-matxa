@@ -34,6 +34,7 @@ jobs:
           SDL_AUDIODRIVER: dummy
         run: |
           python test_features.py
+          python -m unittest -v test_updater.py
 
       - name: Compilar paquet executable per a Windows (.exe)
         run: |
@@ -42,8 +43,8 @@ jobs:
       - name: Comprovar el contingut del paquet Windows
         shell: pwsh
         run: |
-          $zipPath = "dist/PodcastsAmbMatxa-v1.1.3-Windows.zip"
-          if (-not (Test-Path $zipPath)) { throw "No s'ha generat el paquet v1.1.3" }
+          $zipPath = "dist/PodcastsAmbMatxa-v1.1.4-Windows.zip"
+          if (-not (Test-Path $zipPath)) { throw "No s'ha generat el paquet v1.1.4" }
           Add-Type -AssemblyName System.IO.Compression
           $archive = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path $zipPath).Path)
           try {
