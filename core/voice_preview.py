@@ -66,7 +66,7 @@ class VoicePreviewManager:
     }
 
     GENERIC_SAMPLE = "Hola, aquesta és una mostra de la meva veu en català per al pòdcast."
-    CACHE_VERSION = "v6_upc_pau_added"
+    CACHE_VERSION = "v7_neural_preview_fix"
 
     def __init__(self, cache_dir: str = None):
         if cache_dir:
@@ -128,38 +128,43 @@ class VoicePreviewManager:
         return self.VOICE_SAMPLE_PHRASES.get(v_key, self.GENERIC_SAMPLE)
 
     def get_cached_path(self, engine_name: str, voice_id: str) -> str:
-        """Retorna la ruta al fitxer WAV de mostra (preempaquetat a assets o al cau d'usuari)."""
+        """Retorna la mostra preenregistrada abans d'intentar sintetitzar-la."""
         safe_engine = re.sub(r'[^a-zA-Z0-9_]', '_', engine_name).lower()
         safe_voice = re.sub(r'[^a-zA-Z0-9_]', '_', voice_id).lower()
         filename = f"preview_{safe_engine}_{safe_voice}.wav"
+        filenames = [filename, f"preview_{safe_voice}.wav"]
 
-        # 1. Comprova si el fitxer està preempaquetat a assets/previews
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        bundled_candidates = [
-            os.path.join(base_dir, "assets", "previews", filename),
-            os.path.join(base_dir, "assets", "previews", f"preview_{safe_voice}.wav"),
-        ]
+        # El motor abans s'anomenava StyleTTS 2. Conservem les mostres
+        # existents, també per a Joana i Enric, que funcionen sense xarxa.
+        if any(alias in safe_engine for alias in ("microsoft", "neural", "styletts")):
+            filenames.append(f"preview_styletts_2_{safe_voice}.wav")
+
         if "upc" in safe_engine or "upc" in safe_voice:
-            bundled_candidates.extend([
-                os.path.join(base_dir, "assets", "previews", f"preview_upc_{safe_voice}.wav"),
-                os.path.join(base_dir, "assets", "previews", f"preview_upc_ona_festcat_{safe_voice}.wav"),
-                os.path.join(base_dir, "assets", "previews", f"preview_upc_festcat_{safe_voice}.wav")
+            filenames.extend([
+                f"preview_upc_{safe_voice}.wav",
+                f"preview_upc_ona_festcat_{safe_voice}.wav",
+                f"preview_upc_festcat_{safe_voice}.wav",
             ])
-        if hasattr(sys, "_MEIPASS"):
-            bundled_candidates.insert(0, os.path.join(sys._MEIPASS, "assets", "previews", filename))
-            if "upc" in safe_engine or "upc" in safe_voice:
-                bundled_candidates.insert(1, os.path.join(sys._MEIPASS, "assets", "previews", f"preview_upc_{safe_voice}.wav"))
-        if getattr(sys, "executable", None):
-            bundled_candidates.append(os.path.join(os.path.dirname(sys.executable), "_internal", "assets", "previews", filename))
-            bundled_candidates.append(os.path.join(os.path.dirname(sys.executable), "assets", "previews", filename))
-            if "upc" in safe_engine or "upc" in safe_voice:
-                bundled_candidates.append(os.path.join(os.path.dirname(sys.executable), "_internal", "assets", "previews", f"preview_upc_{safe_voice}.wav"))
 
-        for cand in bundled_candidates:
-            if os.path.exists(cand) and os.path.getsize(cand) > 1000:
-                return cand
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        roots = [os.path.join(base_dir, "assets", "previews")]
+        bundle_dir = getattr(sys, "_MEIPASS", None)
+        if bundle_dir:
+            roots.insert(0, os.path.join(bundle_dir, "assets", "previews"))
+        if getattr(sys, "frozen", False) and getattr(sys, "executable", None):
+            exe_dir = os.path.dirname(sys.executable)
+            roots.extend([
+                os.path.join(exe_dir, "_internal", "assets", "previews"),
+                os.path.join(exe_dir, "assets", "previews"),
+            ])
 
-        # 2. Cau d'usuari
+        for root in roots:
+            for name in filenames:
+                candidate = os.path.join(root, name)
+                if os.path.isfile(candidate) and os.path.getsize(candidate) > 1000:
+                    return candidate
+
+        # Nom canònic utilitzat per a mostres sintetitzades i desa-les al cau.
         return os.path.join(self.cache_dir, filename)
 
     def is_cached(self, engine_name: str, voice_id: str) -> bool:
@@ -202,6 +207,12 @@ class VoicePreviewManager:
 
                     if audio_data is None or len(audio_data) == 0:
                         raise RuntimeError("La síntesi de mostra ha retornat un àudio buit.")
+                    audio_data = np.asarray(audio_data, dtype=np.float32)
+                    if not np.all(np.isfinite(audio_data)) or np.max(np.abs(audio_data)) < 1e-5:
+                        raise RuntimeError(
+                            "La síntesi ha retornat una mostra silenciosa o invàlida. "
+                            "Comprova el motor de veu i torna-ho a provar."
+                        )
 
                     # Desarem en 16-bit PCM WAV per a compatibilitat total
                     max_amp = np.max(np.abs(audio_data))
