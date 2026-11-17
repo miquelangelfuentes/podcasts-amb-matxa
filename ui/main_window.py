@@ -2108,7 +2108,9 @@ class MainWindow(ctk.CTk):
             self.safe_after(lambda: self._on_generation_finished(mastered_stereo, "Pòdcast generat amb èxit!"))
 
         except Exception as e:
-            self.safe_after(lambda: self._on_generation_finished(None, f"Error durant la generació: {e}"))
+            # Les variables d'excepció desapareixen en sortir del bloc except.
+            error_message = f"Error durant la generació: {e}"
+            self.safe_after(lambda message=error_message: self._on_generation_finished(None, message))
 
     def _update_progress_ui(self, pct, status_text):
         self.progress_bar.set(pct)
@@ -2124,3 +2126,5 @@ class MainWindow(ctk.CTk):
             self.progress_bar.set(1.0)
             self.player_widget.load_audio(stereo_audio, title=self.current_script.title)
             messagebox.showinfo("Pòdcast completat", "El pòdcast s'ha generat correctament!\nPots escoltar-lo o desar-lo directament com a MP3.")
+        elif status_message.startswith("Error durant la generació:"):
+            messagebox.showerror("Error de síntesi", status_message)
