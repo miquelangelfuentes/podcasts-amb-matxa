@@ -55,8 +55,11 @@ class VersionCheckModal(ctk.CTkToplevel):
         self._is_updating = False
         self._latest_release_data = None
         self._pending_updater_script = None
+        self._pending_update_stage = None
+        self._updater_launched = False
 
         self._build_ui()
+        self.protocol("WM_DELETE_WINDOW", self._close_modal)
         self._start_check_thread()
 
     def _set_modal_icon(self):
@@ -182,7 +185,7 @@ class VersionCheckModal(ctk.CTkToplevel):
             text="Tanca",
             width=80,
             height=32,
-            command=self.destroy
+            command=self._close_modal
         )
         btn_close.pack(side="right", padx=12, pady=10)
 
@@ -334,7 +337,13 @@ class VersionCheckModal(ctk.CTkToplevel):
                 raise RuntimeError("La descàrrega no és un ZIP vàlid.")
             source_dir = extract_windows_release(archive_path, extract_path)
             exe_dir = os.path.dirname(os.path.abspath(sys.executable))
-            script_path = os.path.join(stage, "aplica_actualitzacio.ps1")
+            # L'ajudant ha d'estar FORA del paquet temporal per poder-lo esborrar.
+            updater_file = tempfile.NamedTemporaryFile(
+                mode="w", prefix="podcasts_matxa_apply_", suffix=".ps1",
+                encoding="utf-8-sig", delete=False,
+            )
+            script_path = updater_file.name
+            updater_file.close()
             script = make_windows_update_script(
                 source_dir=source_dir,
                 install_dir=exe_dir,
@@ -348,6 +357,7 @@ class VersionCheckModal(ctk.CTkToplevel):
                 script_file.write(script)
 
             self._pending_updater_script = script_path
+            self._pending_update_stage = stage
             self.after(0, lambda path=script_path: self._prompt_restart_updater(path))
         except Exception as e:
             error_message = str(e)
@@ -396,5 +406,21 @@ class VersionCheckModal(ctk.CTkToplevel):
             self._on_update_error(str(e))
             return
 
+        self._updater_launched = True
         self.parent.destroy()
         sys.exit(0)
+
+    def _close_modal(self):
+        """Allibera una descàrrega ajornada si es tanca el diàleg."""
+        import shutil
+        if not self._updater_launched:
+            if self._pending_update_stage:
+                shutil.rmtree(self._pending_update_stage, ignore_errors=True)
+                self._pending_update_stage = None
+            if self._pending_updater_script:
+                try:
+                    os.unlink(self._pending_updater_script)
+                except OSError:
+                    pass
+                self._pending_updater_script = None
+        self.destroy()
