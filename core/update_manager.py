@@ -137,6 +137,7 @@ try {{
     Add-Content -LiteralPath $LogPath -Value 'Copia completada i verificada.'
     Start-Process -FilePath $TargetExe -WorkingDirectory $TargetDir
     Remove-Item -LiteralPath $StageDir -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
 }} catch {{
     $message = $_.Exception.Message
     Add-Content -LiteralPath $LogPath -Value ("ERROR: " + $message)
