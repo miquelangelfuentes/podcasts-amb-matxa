@@ -31,7 +31,7 @@ def get_windows_asset(release: dict) -> dict:
     expected = "PodcastsAmbMatxa-v{}.{}.{}-Windows.zip".format(*version)
     for asset in release.get("assets", []):
         if asset.get("name") == expected and asset.get("browser_download_url", "").startswith(
-            "https://github.com/"
+            "https://github.com/miquelangelfuentes/podcasts-amb-matxa/releases/download/"
         ):
             return asset
     raise ValueError(f"La release no conté l'executable oficial de Windows ({expected}).")
