@@ -8,7 +8,7 @@ import os
 import re
 import stat
 import zipfile
-from pathlib import Path, PurePosixPath
+from pathlib import PurePosixPath
 
 
 _VERSION_RE = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)$")
@@ -97,7 +97,7 @@ def make_windows_update_script(
     dst = _ps_literal(install_dir)
     exe = _ps_literal(exe_path)
     stage = _ps_literal(staging_dir)
-    log_name = _ps_literal(f"PodcastsAmbMatxa-update-v{version}.log")
+    log_name = _ps_literal(f"PodcastsAmbMatxa-update-v{'.'.join(map(str, parse_version(version)))}.log")
     return f"""$ErrorActionPreference = 'Stop'
 $SourceDir = {src}
 $TargetDir = {dst}
@@ -106,7 +106,7 @@ $StageDir = {stage}
 $ParentPid = {int(parent_pid)}
 $LogPath = Join-Path $env:TEMP {log_name}
 try {{
-    Add-Content -LiteralPath $LogPath -Value "Iniciant actualitzacio v{version}."
+    Add-Content -LiteralPath $LogPath -Value "Iniciant actualitzacio {version}."
     $limit = (Get-Date).AddSeconds(120)
     while (Get-Process -Id $ParentPid -ErrorAction SilentlyContinue) {{
         if ((Get-Date) -gt $limit) {{
